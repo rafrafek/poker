@@ -31,8 +31,7 @@ const rooms: Room[] = [];
 
 function requestHandler(req: Request): Response {
     const url = new URL(req.url);
-    const pathnameSplit = url.pathname.split("/");
-    const path = pathnameSplit.length > 1 ? pathnameSplit[1] : "/";
+    const path = url.pathname.split("/")[1];
 
     if (req.headers.get("upgrade") !== "websocket") {
         return handleHttpRequest(path);
