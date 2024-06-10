@@ -57,6 +57,11 @@ function handleHttpRequest(path: string): Response {
                 status: 200,
                 headers: { "Content-Type": "text/javascript; charset=utf-8" },
             });
+        case "manifest.json":
+            return new Response(JSON.stringify({}), {
+                status: 200,
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+            });
         case "favicon.ico":
             return new Response(undefined, { status: 404 });
     }
