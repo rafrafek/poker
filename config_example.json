@@ -1,0 +1,5 @@
+{
+    "fetchStateUrl": "https://example.supabase.co/functions/v1/get-latest-poker-state",
+    "saveStateUrl": "https://example.supabase.co/functions/v1/insert-poker-state",
+    "token": "token"
+}

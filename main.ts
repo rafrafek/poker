@@ -3,6 +3,24 @@ const bodyHtml = await Deno.readTextFile(__dirname + "index.html");
 const bodyCss = await Deno.readTextFile(__dirname + "main.css");
 const bodyJs = await Deno.readTextFile(__dirname + "main.js");
 
+interface Config {
+    fetchStateUrl: string;
+    saveStateUrl: string;
+    token: string;
+}
+
+const config = await (async () => {
+    try {
+        const parsed: Config = JSON.parse(
+            await Deno.readTextFile(__dirname + "config.json"),
+        );
+        return parsed;
+    } catch {
+        console.log("Config not found or unable to parse it.");
+        return;
+    }
+})();
+
 interface User {
     id: string;
     itemNumber: string | null;
@@ -22,16 +40,27 @@ interface OpenSocket {
 }
 
 interface Room {
+    id: number;
     visible: boolean;
     openSockets: OpenSocket[];
     users: User[];
 }
 
-const rooms: Room[] = [];
+interface RoomWithoutWebsockets {
+    id: number;
+    visible: boolean;
+    users: User[];
+}
+
+let rooms: Room[] = [];
 
 function requestHandler(req: Request): Response {
     const url = new URL(req.url);
     const path = url.pathname.split("/")[1];
+
+    if (path.length > 16) {
+        return new Response("Room number is too large.", { status: 400 });
+    }
 
     if (req.headers.get("upgrade") !== "websocket") {
         return handleHttpRequest(path);
@@ -63,7 +92,7 @@ function handleHttpRequest(path: string): Response {
                 headers: { "Content-Type": "application/json; charset=utf-8" },
             });
         case "favicon.ico":
-            return new Response(undefined, { status: 404 });
+            return new Response("Not found.", { status: 404 });
     }
 
     return new Response(bodyHtml, {
@@ -75,15 +104,18 @@ function handleHttpRequest(path: string): Response {
 function handleWebSocketRequest(req: Request, path: string): Response {
     const roomIndex = parseInt(path, 10) || 0;
 
-    if (typeof rooms[roomIndex] === "undefined") {
-        rooms[roomIndex] = {
+    let room = rooms.find((room) => room.id === roomIndex);
+
+    if (typeof room === "undefined") {
+        room = {
+            id: roomIndex,
             visible: false,
             openSockets: [],
             users: [],
         };
+        rooms.push(room);
     }
 
-    const room = rooms[roomIndex];
     const { socket, response } = Deno.upgradeWebSocket(req);
 
     socket.addEventListener("open", () => onSocketOpen(room, socket));
@@ -147,21 +179,29 @@ function handleConnectedMessage(
 ) {
     const openSocket = room.openSockets.find((s) => s.socket === socket);
     if (openSocket) {
-        openSocket.userId = parsed.userId;
+        openSocket.userId = typeof parsed.userId === "string"
+            ? parsed.userId.substring(0, 30)
+            : undefined;
     }
 }
 
 interface ItemNumberMessage {
     userId: string;
-    itemNumber: string;
+    itemNumber: string | null;
     userName: string;
 }
 
 function handleItemNumberMessage(room: Room, parsed: ItemNumberMessage) {
     const user = {
-        id: parsed.userId,
-        itemNumber: parsed.itemNumber,
-        name: parsed.userName,
+        id: typeof parsed.userId === "string"
+            ? parsed.userId.substring(0, 30)
+            : "0",
+        itemNumber: typeof parsed.itemNumber === "string"
+            ? parsed.itemNumber.substring(0, 30)
+            : null,
+        name: typeof parsed.userName === "string"
+            ? parsed.userName.substring(0, 30).trim()
+            : "Anonymous",
     };
     const index = room.users.findIndex((u) => u.id === parsed.userId);
     if (index !== -1) {
@@ -194,6 +234,8 @@ interface RemoveUserMessage {
 }
 
 function handleRemoveUserMessage(room: Room, parsed: RemoveUserMessage) {
+    const online = room.openSockets.some((s) => s.userId === parsed.id);
+    if (online) return;
     room.users = room.users.filter((u) => u.id !== parsed.id);
 }
 
@@ -217,5 +259,80 @@ function broadcastUserData(room: Room) {
         }));
     }
 }
+
+async function fetchData() {
+    if (!config) return;
+
+    const resp = await fetch(
+        config.fetchStateUrl,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${config.token}`,
+            },
+        },
+    );
+    const state: RoomWithoutWebsockets[] = (await resp.json()).lastEntry?.state;
+    return state;
+}
+
+const fetchedData = await fetchData();
+if (fetchedData) {
+    console.log("Fetched saved state:");
+    console.log(fetchedData);
+    rooms = fetchedData.map((room) => ({
+        id: room.id,
+        visible: room.visible,
+        openSockets: [],
+        users: room.users,
+    }));
+}
+
+async function saveData() {
+    if (!config) return;
+
+    console.log("Saving.");
+
+    const roomsWithoutSockets: RoomWithoutWebsockets[] = rooms.map((room) => ({
+        id: room.id,
+        visible: room.visible,
+        users: room.users,
+    }));
+
+    const body = JSON.stringify(roomsWithoutSockets);
+    await fetch(
+        config.saveStateUrl,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${config.token}`,
+            },
+            body,
+        },
+    );
+}
+
+async function saveAndExit() {
+    await saveData();
+    console.log("Exiting.");
+    Deno.exit();
+}
+
+Deno.addSignalListener("SIGINT", async () => {
+    console.log();
+    await saveAndExit();
+});
+
+Deno.addSignalListener("SIGTERM", async () => {
+    await saveAndExit();
+});
+
+const minute = 1000 * 60;
+
+setInterval(async () => {
+    await saveData();
+}, minute * 5);
 
 Deno.serve(requestHandler);
