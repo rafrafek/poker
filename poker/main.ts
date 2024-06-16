@@ -1,7 +1,8 @@
 const __dirname = new URL(".", import.meta.url).pathname;
-const bodyHtml = await Deno.readTextFile(__dirname + "index.html");
-const bodyCss = await Deno.readTextFile(__dirname + "main.css");
-const bodyJs = await Deno.readTextFile(__dirname + "main.js");
+const staticFilesDir = __dirname + "static/";
+const bodyHtml = await Deno.readTextFile(staticFilesDir + "index.html");
+const bodyCss = await Deno.readTextFile(staticFilesDir + "main.css");
+const bodyJs = await Deno.readTextFile(staticFilesDir + "main.js");
 
 interface Config {
     fetchStateUrl: string;
@@ -12,7 +13,7 @@ interface Config {
 const config = await (async () => {
     try {
         const parsed: Config = JSON.parse(
-            await Deno.readTextFile(__dirname + "config.json"),
+            await Deno.readTextFile(__dirname + "config/" + "config.json"),
         );
         return parsed;
     } catch {
