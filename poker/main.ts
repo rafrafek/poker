@@ -1,57 +1,11 @@
+import { Room, UserPublic } from "./models.ts";
+import { fetchData, saveData } from "./persistence.ts";
+
 const __dirname = new URL(".", import.meta.url).pathname;
 const staticFilesDir = __dirname + "static/";
 const bodyHtml = await Deno.readTextFile(staticFilesDir + "index.html");
 const bodyCss = await Deno.readTextFile(staticFilesDir + "main.css");
 const bodyJs = await Deno.readTextFile(staticFilesDir + "main.js");
-
-interface Config {
-    fetchStateUrl: string;
-    saveStateUrl: string;
-    token: string;
-}
-
-const config = await (async () => {
-    try {
-        const parsed: Config = JSON.parse(
-            await Deno.readTextFile(__dirname + "config/" + "config.json"),
-        );
-        return parsed;
-    } catch {
-        console.log("Config not found or unable to parse it.");
-        return;
-    }
-})();
-
-interface User {
-    id: string;
-    itemNumber: string | null;
-    name: string;
-}
-
-interface UserPublic {
-    id: string;
-    online: boolean;
-    itemNumber: string | null;
-    name: string;
-}
-
-interface OpenSocket {
-    socket: WebSocket;
-    userId?: string;
-}
-
-interface Room {
-    id: number;
-    visible: boolean;
-    openSockets: OpenSocket[];
-    users: User[];
-}
-
-interface RoomWithoutWebsockets {
-    id: number;
-    visible: boolean;
-    users: User[];
-}
 
 let rooms: Room[] = [];
 
@@ -261,23 +215,6 @@ function broadcastUserData(room: Room) {
     }
 }
 
-async function fetchData() {
-    if (!config) return;
-
-    const resp = await fetch(
-        config.fetchStateUrl,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${config.token}`,
-            },
-        },
-    );
-    const state: RoomWithoutWebsockets[] = (await resp.json()).lastEntry?.state;
-    return state;
-}
-
 const fetchedData = await fetchData();
 if (fetchedData) {
     console.log("Fetched saved state:");
@@ -290,33 +227,8 @@ if (fetchedData) {
     }));
 }
 
-async function saveData() {
-    if (!config) return;
-
-    console.log("Saving.");
-
-    const roomsWithoutSockets: RoomWithoutWebsockets[] = rooms.map((room) => ({
-        id: room.id,
-        visible: room.visible,
-        users: room.users,
-    }));
-
-    const body = JSON.stringify(roomsWithoutSockets);
-    await fetch(
-        config.saveStateUrl,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${config.token}`,
-            },
-            body,
-        },
-    );
-}
-
 async function saveAndExit() {
-    await saveData();
+    await saveData(rooms);
     console.log("Exiting.");
     Deno.exit();
 }
@@ -333,7 +245,7 @@ Deno.addSignalListener("SIGTERM", async () => {
 const minute = 1000 * 60;
 
 setInterval(async () => {
-    await saveData();
+    await saveData(rooms);
 }, minute * 5);
 
 Deno.serve(requestHandler);
