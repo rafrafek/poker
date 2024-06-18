@@ -1,5 +1,8 @@
 {
-    "fetchStateUrl": "https://example.supabase.co/functions/v1/get-latest-poker-state",
-    "saveStateUrl": "https://example.supabase.co/functions/v1/insert-poker-state",
-    "token": "token"
+    "apiStateFetchUrl": "https://example.supabase.co/functions/v1/get-latest-poker-state",
+    "apiStateSaveUrl": "https://example.supabase.co/functions/v1/insert-poker-state",
+    "apiStateToken": "token",
+    "proxyHeaderKey": "x-custom-header",
+    "proxyHeaderValue": "secret",
+    "enableHeadersLogging": true
 }

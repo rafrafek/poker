@@ -1,3 +1,4 @@
+import { config } from "./config.ts";
 import { Room, UserPublic } from "./models.ts";
 import { fetchData, saveData } from "./persistence.ts";
 
@@ -10,6 +11,15 @@ const bodyJs = await Deno.readTextFile(staticFilesDir + "main.js");
 let rooms: Room[] = [];
 
 function requestHandler(req: Request): Response {
+    if (config?.enableHeadersLogging) console.log(req.headers);
+
+    if (
+        config?.proxyHeaderKey &&
+        req.headers.get(config.proxyHeaderKey) !== config.proxyHeaderValue
+    ) {
+        return new Response("Unauthorized.", { status: 401 });
+    }
+
     const url = new URL(req.url);
     const path = url.pathname.split("/")[1];
 

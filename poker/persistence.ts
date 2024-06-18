@@ -1,35 +1,16 @@
+import { config } from "./config.ts";
 import { Room, RoomWithoutWebsockets } from "./models.ts";
 
-const __dirname = new URL(".", import.meta.url).pathname;
-
-interface Config {
-    fetchStateUrl: string;
-    saveStateUrl: string;
-    token: string;
-}
-
-const config = await (async () => {
-    try {
-        const parsed: Config = JSON.parse(
-            await Deno.readTextFile(__dirname + "config/" + "config.json"),
-        );
-        return parsed;
-    } catch {
-        console.log("Config not found or unable to parse it.");
-        return;
-    }
-})();
-
 export async function fetchData() {
-    if (!config) return;
+    if (!config?.apiStateFetchUrl || !config?.apiStateToken) return;
 
     const resp = await fetch(
-        config.fetchStateUrl,
+        config.apiStateFetchUrl,
         {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${config.token}`,
+                "Authorization": `Bearer ${config.apiStateToken}`,
             },
         },
     );
@@ -38,7 +19,7 @@ export async function fetchData() {
 }
 
 export async function saveData(rooms: Room[]) {
-    if (!config) return;
+    if (!config?.apiStateSaveUrl || !config?.apiStateToken) return;
 
     console.log("Saving.");
 
@@ -50,12 +31,12 @@ export async function saveData(rooms: Room[]) {
 
     const body = JSON.stringify(roomsWithoutSockets);
     await fetch(
-        config.saveStateUrl,
+        config.apiStateSaveUrl,
         {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${config.token}`,
+                "Authorization": `Bearer ${config.apiStateToken}`,
             },
             body,
         },
