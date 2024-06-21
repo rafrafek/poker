@@ -247,9 +247,11 @@ Deno.addSignalListener("SIGINT", async () => {
     await saveAndExit();
 });
 
-Deno.addSignalListener("SIGTERM", async () => {
-    await saveAndExit();
-});
+if (Deno.build.os !== "windows") {
+    Deno.addSignalListener("SIGTERM", async () => {
+        await saveAndExit();
+    });
+}
 
 const minute = 1000 * 60;
 
