@@ -2,8 +2,7 @@ import { config } from "./config.ts";
 import { Room, UserPublic } from "./models.ts";
 import { fetchData, saveData } from "./persistence.ts";
 
-const __dirname = new URL(".", import.meta.url).pathname;
-const staticFilesDir = __dirname + "static/";
+const staticFilesDir = import.meta.dirname + "/static/";
 const bodyHtml = await Deno.readTextFile(staticFilesDir + "index.html");
 const bodyCss = await Deno.readTextFile(staticFilesDir + "main.css");
 const bodyJs = await Deno.readTextFile(staticFilesDir + "main.js");

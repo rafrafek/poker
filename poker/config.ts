@@ -1,5 +1,3 @@
-const __dirname = new URL(".", import.meta.url).pathname;
-
 interface Config {
     apiStateFetchUrl?: string;
     apiStateSaveUrl?: string;
@@ -12,7 +10,9 @@ interface Config {
 export const config = await (async () => {
     try {
         const parsed: Config = JSON.parse(
-            await Deno.readTextFile(__dirname + "config/" + "config.json"),
+            await Deno.readTextFile(
+                import.meta.dirname + "/config/" + "config.json",
+            ),
         );
         return parsed;
     } catch {
