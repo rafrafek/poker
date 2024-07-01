@@ -5,6 +5,7 @@ const userId = getRandomId();
 let userName = getName();
 let visible = null;
 let itemNumber = null;
+let myCardVisible = true;
 
 function getRandomId() {
     if (!localStorage.getItem("userId")) {
@@ -60,6 +61,15 @@ function deleteEstimates() {
     }
 }
 
+function toggleMyCards() {
+    const itemsContainer = document.getElementById("itemsContainer");
+    const myCardCell = document.getElementById("myCardCell");
+    myCardVisible = !myCardVisible;
+    itemsContainer.classList.toggle("hidden", !myCardVisible);
+    if (!visible && !myCardVisible) myCardCell?.classList.add("hidden");
+    if (myCardVisible && itemNumber) handleItemClick(itemNumber);
+}
+
 function removeUser(id) {
     if (webSocket?.readyState === WebSocket.OPEN) {
         webSocket.send(JSON.stringify({ type: "removeUser", id }));
@@ -90,6 +100,7 @@ function updateSelected(parsed) {
             document.querySelectorAll(".item").forEach(el => {
                 el.classList.toggle("selected", user.itemNumber === el.textContent);
             });
+            break;
         }
     }
 }
@@ -137,8 +148,10 @@ function updateTable(parsed) {
             if (!parsed.visible && user.id === userId) {
                 const infoHidden = document.createElement("div");
                 infoHidden.textContent = "(hidden)";
-                infoHidden.style.marginLeft = "20px";
+                infoHidden.classList.add("margin-left");
                 secondCellContent.appendChild(infoHidden);
+                secondCellContent.setAttribute("id", "myCardCell");
+                if (!myCardVisible) secondCellContent.classList.add("hidden");
             }
         }
         secondCell.appendChild(secondCellContent);
